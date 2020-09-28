@@ -219,12 +219,16 @@ class CConfig:
         vAutoTransactionsFilePath = os.path.join(aOptions['output-root-folder'],"transaction-decl.json")
         if aUseCached:
             logger.info( "  reading cached auto transactions from file [{}]".format(vAutoTransactionsFilePath) )
-            with open(vAutoTransactionsFilePath,"r") as vInJson:
-                for iLine in vInJson:
-                    vLine = iLine.strip()
-                    if vLine[-1]==',': vLine = vLine[:-1]
-                    vTrDecl = json.loads(vLine)
-                    vAutoTransactions.append( vTrDecl )
+            if os.path.exists(vAutoTransactionsFilePath):
+                with open(vAutoTransactionsFilePath,"r") as vInJson:
+                    for iLine in vInJson:
+                        vLine = iLine.strip()
+                        print( "transaction-decl: {}".format(vLine))
+                        if vLine[-1]==',': vLine = vLine[:-1]
+                        vTrDecl = json.loads(vLine)
+                        vAutoTransactions.append( vTrDecl )
+            else:
+                logger.warning( "    !Warning: file empty, relying only of content of fonfig.json file" )
         else:
             vAutoTransactions = CConfig._automaticLoadOfRiskiestTransactions(aConfigTransactions,aOptions)
             logger.info( "  saving auto transactions into file [{}]".format(vAutoTransactionsFilePath) )

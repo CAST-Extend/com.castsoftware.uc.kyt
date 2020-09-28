@@ -109,6 +109,21 @@ class CCastEnlighten:
 
     _vQueryFldExist="SELECT F.idfld FROM {0}.fld F WHERE F.fldnam='{1}'"
     _vQueryFldCreate = "set search_path={1}; SELECT I_Fld( 0, '{0}', 5, 20070, 1, 214, 'Default Folder/{0}' );"
+    _vQueryFldCreate = """
+      set search_path={1}; 
+      DO $$ 
+        <<first_block>>
+      DECLARE
+        vMinFldId Fld.idfld%TYPE;
+        vDummy    Fld.idfld%TYPE;
+      BEGIN 
+        SELECT INTO vMinFldId MIN(idfld) FROM Fld;
+        --RAISE NOTICE 'The current value of vMinFldId is %', vMinFldId;
+        SELECT I_Fld( 0, '{0}', vMinFldId, 20070, 1, 214, 'Default Folder/{0}' ) INTO vDummy;
+        --RAISE NOTICE 'View created with id: %', vDummy;
+      END first_block $$;
+"""
+    _vQueryFldCreate = "set search_path={1}; SELECT I_Fld( 0, '{0}', (SELECT MIN(idfld) FROM Fld), 20070, 1, 214, 'Default Folder/{0}' );"
 
     _vQueryModExist="SELECT M.idmod FROM {0}.mod M WHERE M.idfld={1} and M.modnam='{2}'"
     _vQueryModCreate="set search_path={3}; SELECT I_Mod( 0, '', '{2}', 20070, 1, 214, {1}, 'Default Folder/{0}' )"
@@ -188,6 +203,7 @@ class CCastEnlighten:
                 logger.info( "    created mod {0}: id: {1}".format(vEViewName, vModId) )
                     # update mod usr
                 vRes = self._curs.execute( CCastEnlighten._vQueryModCreate2.format(vModId,"OPE",self._localSchema) )
+                #vRes = self._curs.execute( CCastEnlighten._vQueryModCreate2.format(vModId,"AIC",self._localSchema) )
                     # some stuffs
                 for iQuery in CCastEnlighten._vQueryModCreate3:
                     vRes = self._curs.execute( iQuery.format(vModId,self._localSchema) )

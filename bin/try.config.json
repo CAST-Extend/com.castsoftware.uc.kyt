@@ -26,7 +26,7 @@
 
 { "config":"Webgoat@localhost",
     "options":{
-        "enable":true, "disable-all-others":true,
+        "enable":true, "disable-all-others":false,
         "client-name":"Community", "client-app":"Webgoat", "db-server": "localhost", "db-base":"postgres", "db-port":"2280", "db-schema-prefix":"webgoat",
         "title":"Webgoat",
         "output-root-folder":"D:\\temp\\webgoat-kyt",

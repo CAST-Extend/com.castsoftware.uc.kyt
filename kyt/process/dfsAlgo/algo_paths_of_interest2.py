@@ -8,7 +8,7 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-TExplorationData = collections.namedtuple( "TExplorationData", [ "g", "ooi", "loi", "startt"])
+TExplorationData = collections.namedtuple( "TExplorationData", [ "g", "ooi", "loi", "startt", "timeout"])
 
 
 ## -- -----------------------------------------------------------------------
@@ -65,7 +65,7 @@ def _pathsToObjectsOfInterestRec2( aExplData, aStartNode, isOoIUpstream, aVData,
     # prevent too long exploration
     vElapsed = time.perf_counter()
     vDeltaT = vElapsed-aExplData.startt
-    if vDeltaT > 60*5:
+    if vDeltaT > aExplData.timeout:
         logger.error( "***ERROR: exploration is taking to much time, aborting." )
         return None
 
@@ -130,7 +130,7 @@ def _pathsToObjectsOfInterestRec2( aExplData, aStartNode, isOoIUpstream, aVData,
 
 def pathsToObjectsOfInterest2( aGraph, aStartNode, aObjectsOfInterest, aLeafOfInterest, aAllEndPoints=False ):
     logging.getLogger().setLevel(logging.INFO)
-    vExplData = TExplorationData(aGraph,aObjectsOfInterest, set() if True else aLeafOfInterest,time.perf_counter())
+    vExplData = TExplorationData(aGraph,aObjectsOfInterest, set() if True else aLeafOfInterest,time.perf_counter(),6)
     vVisitData = {}
     vRes = _computeLoiAndOoIRec( vExplData, aStartNode, vVisitData, tuple() )
     logger.info( "  computed data: isLoI: {}, isOoI: {}, nb reachable leaves: {}, nb ooi downstream: {}".format(

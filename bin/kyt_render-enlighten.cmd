@@ -11,11 +11,13 @@ TITLE %~n0
 PUSHD %~p0
 CD ..\kyt
 
+CALL "%~dp0_asetenv.cmd"
+
 SET V_SCRIPT_PY=runner.py
-SET V_CONFIG_JSON=%~dp0try.config.json
+SET V_CONFIG_JSON=%KYT_CONFIG_FILEPATH%
 SET V_OPTIONS=enlighten
 
-SET V_CMD=python %V_SCRIPT_PY% %V_OPTIONS% %V_CONFIG_JSON%
+SET V_CMD=python %V_SCRIPT_PY% %V_OPTIONS% "%V_CONFIG_JSON%"
 
 :L_LOOP
 ECHO.^>^>^>^>^>^> %V_CMD%

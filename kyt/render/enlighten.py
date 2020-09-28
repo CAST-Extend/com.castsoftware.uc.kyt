@@ -67,6 +67,7 @@ class CCastEnlighten:
 
     _vQueryFldExist="SELECT F.idfld FROM {0}.fld F WHERE F.fldnam='{1}'"
     _vQueryFldCreate = "set search_path={1}; SELECT I_Fld( 0, '{0}', 5, 20070, 1, 214, 'Default Folder/{0}' );"
+    _vQueryFldCreate = "set search_path={1}; SELECT I_Fld( 0, '{0}', (SELECT MIN(idfld) FROM Fld), 20070, 1, 214, 'Default Folder/{0}' );"
 
     _vQueryModExist="SELECT M.idmod FROM {0}.mod M WHERE M.idfld={1} and M.modnam='{2}'"
     _vQueryModCreate="set search_path={3}; SELECT I_Mod( 0, '', '{2}', 20070, 1, 214, {1}, 'Default Folder/{0}' )"
@@ -96,19 +97,19 @@ class CCastEnlighten:
 
         if vRes:
             retVal = 0+vRes[0][0]
-            logger.info( "folder {0} already exists: id: {1}".format(aEFolderName,retVal) )
+            logger.info( "      folder {0} already exists: id: {1}".format(aEFolderName,retVal) )
 
         elif aCreateIfNotExist:
             # Create folder
             vRes = vCurs.execute( CCastEnlighten._vQueryFldCreate.format(aEFolderName,self._localSchema) )
             vRes = vCurs.fetchall()
             retVal = 0+vRes[0][0]
-            logger.info( "created folder {0}: id: {1}".format(aEFolderName,retVal) )
+            logger.info( "      created folder {0}: id: {1}".format(aEFolderName,retVal) )
 
         return retVal
 
 
-    def createValidView( self, aEFolderName, aEFolderId, aEViewName ):
+    def createValidView( self, aEFolderName, aEFolderId, aEViewName, aSkipIfExists ):
         retVal = None
 
         vContinue = True
@@ -119,18 +120,21 @@ class CCastEnlighten:
             vRes = self._curs.execute( CCastEnlighten._vQueryModExist.format(self._localSchema, aEFolderId, vEViewName) )
             vRes = self._curs.fetchall()
             if vRes:
-                # View name already exist for that folder => generate name
-                logger.info( "view {0} already exists, generating new name...".format(vEViewName) )
-                vEViewName = "{0}({1:0>3})".format(aEViewName,vIndex)
-                vIndex += 1
+                if not aSkipIfExists:
+                    # View name already exist for that folder => generate name
+                    logger.info( "      view {0} already exists, generating new name...".format(vEViewName) )
+                    vEViewName = "{0}({1:0>3})".format(aEViewName,vIndex)
+                    vIndex += 1
+                else:
+                    vContinue = False
 
             else:
-                logger.info( "creating view {0}...".format(vEViewName) )
+                logger.info( "      creating view {0}...".format(vEViewName) )
                 
                 vRes = self._curs.execute( CCastEnlighten._vQueryModCreate.format(aEFolderName, aEFolderId, vEViewName, self._localSchema ) )
                 vRes = self._curs.fetchall()
                 vModId = 0+vRes[0][0]
-                logger.info( "created mod {0}: id: {1}".format(vEViewName, vModId) )
+                logger.info( "      created mod {0}: id: {1}".format(vEViewName, vModId) )
                     # update mod usr
                 vRes = self._curs.execute( CCastEnlighten._vQueryModCreate2.format(vModId,"OPE",self._localSchema) )
                     # some stuffs
@@ -141,8 +145,11 @@ class CCastEnlighten:
                     
                 vContinue = False
                 retVal = vModId
-
-        return CCastEnlightenView(self._curs,self._localSchema,retVal)
+        
+        if retVal:
+            retVal = CCastEnlightenView(self._curs,self._localSchema,retVal)
+        
+        return retVal
 
 
 
@@ -195,127 +202,16 @@ def formatText( aText, aMaxCharPerLine=45 ):
     retVal += vText
     return retVal
 
-
-def generateEnlightenViews( aCnx, aLocalSchema, aObjects, aPaths, aPathes, aObjProFilePath, aPosOutputFile ):
-    with psycopg2.connect(aCnx) as vConn:
-        vCE = CCastEnlighten(vConn.cursor(),aLocalSchema)
-        vFldId = vCE.getEnlightenFolderId( aEFolderName, True )
-        logger.info( "using folder id:".format(vFldId) )
-
-        vEV = vCE.createValidView( aEFolderName, vFldId, aEViewName )
-
-        vEV.doObjPro( getObjPro(aObjects,aObjProFilePath) )
-        generateEnlightenViewA( aObjects, aObjProFilePath, aPosOutputFile )
-        generateEnlightenViewB( aPaths, aPathes, aObjProFilePath, aPosOutputFile )
-
+# Behavior:
+#   if folder already exists in ENlighten with same name, then the existing folder will be used
+#   if view already exists in Enlighten
 # aObjects: set: object_id -> [ ( critical violations )]
-def generateEnlightenViewA( aObjects, aObjProFilePath, aPosOutputFile, aMode=0 ):
-
-    C_BOX_MARGIN = 6
-    C_BOX_MARGIN2 = 9
-
-    # populate objects
-    with open( aPosOutputFile, "w") as vPosFile:
-        print( "# 0/A:ObjectId | 1/B: x | 2/C: y | 3/D: w | 4/E: h | 5/F: text", file=vPosFile )
-        vXOrg, vYOrg = 500, 500
-        vX = vXOrg
-        vY = vYOrg
-        vW = 480
-        vH = 80
-        vRow = 0
-        vCol = 0
-        vNum = 0
-        vDeltaX = 540
-        vDeltaY = 270
-        vColMax = 5 # 5 = 6 - 1
-        for iO in aObjects.keys():
-            vCol = divmod(vNum,6)[1]
-            vRow = divmod(vNum,6)[0]
-            if 1 == vRow%2:
-                vCol = vColMax-vCol
-
-            if 0 == aMode:
-                vX = vXOrg + vCol*vDeltaX
-                vY = vYOrg + vRow*vDeltaY
-            elif 1 == aMode:
-                vX = vXOrg + vCol*vDeltaX
-                if 1 == vCol%2:
-                    vY = vYOrg + (vRow+1)*vDeltaY-1-vH
-                else:
-                    vY = vYOrg + vRow*vDeltaY
-            elif 2 == aMode:
-                vX = vXOrg + vCol*vDeltaX
-                if 0 == vRow%2:
-                    vY = vYOrg + int( vRow*vDeltaY + vCol*(vDeltaY-vH)/6 )
-                else:
-                    vY = vYOrg + int( vRow*vDeltaY + (vColMax - vCol)*(vDeltaY-vH)/6 )
-                
-            #vRes = vCurs.execute( vQuery4.format(vModId,iO,vX,vY,vW,vH,aLocalSchema) )
-            vEV.drawObject( iO, vX, vY, vW, vH )
-
-            # 0/A:ObjectId | 1/B: ObjectName | 2/C: x | 3/D: y | 4/E: w | 5/F: h | 6/G: text | 7/H: ObjectFullname
-            #old-version#print( "{0}|{1}|{2}|{3}|{4}|{5}|{6}|{7}".format(iO,aObjects[iO][4],vX,vY,vW,vH,"",aObjects[iO][5]), file=vPosFile )
-            print( "{0}|{1}|{2}|{3}|{4}|{5}|{6}|{7}".format(
-                iO, aObjects[iO][0][4],vX,vY,vW,vH,"",aObjects[iO][0][5]), file=vPosFile )
-            vNum += 1
-            
-            vNbDefects = 0
-            vNbNonCriticalDefects = 0
-            vNbCriticalDefects = 0
-            vTexts = []
-            vTextsCritical = []
-            for iDefect in aObjects[iO]:
-                if '*' == iDefect[0] :
-                    vNbCriticalDefects += 1
-                    vTextsCritical.append( "*"+iDefect[7] )
-
-                elif '-' == iDefect[0] :
-                    vNbNonCriticalDefects += 1
-                    vTexts.append( iDefect[7] )
-            vNbDefects = vNbNonCriticalDefects + vNbCriticalDefects
-
-            if vNbDefects > 0:
-                if 0 == vNbNonCriticalDefects :
-                    # Only critical violations, put 2 max
-                    vText = "{} crit. defect(s):".format(vNbDefects )
-                    vText += "\n  "+vTextsCritical[0]
-                    if vNbCriticalDefects>1:
-                        vText += "\n  "+vTextsCritical[1]
-
-                elif 0 == vNbCriticalDefects :
-                    # Only non-critical violations, put 2 max
-                    vText = "{} non-crit. defect(s):".format(vNbDefects)
-                    vText += "\n  "+vTexts[0]
-                    if vNbDefects>1:
-                        vText += "\n  "+vTexts[1]
-
-                else:
-                    # Both critical and non-critical violations
-                    vText = "{} crit. defect(s), {} non-crit. defect(s):".format(vNbCriticalDefects,vNbDefects)
-                    vText += "\n  "+vTextsCritical[0]
-                    if vNbCriticalDefects>1:
-                        vText += "\n  "+vTextsCritical[1]
-                    elif vNbCriticalDefects > 0 :
-                        vText += "\n  "+vTexts[0]
-
-
-                vEV.drawText( vText, vX, vY+vH, vW, int(3*vH/2) )
-
-                print( "{0}|{1}|{2}|{3}|{4}|{5}|{6}|{7}".format("","text",vX,vY,vW,vH,vText,""), file=vPosFile )
-
-                vEV.drawRectangle( vX-C_BOX_MARGIN,vY-C_BOX_MARGIN,vW+2*C_BOX_MARGIN,int(5*vH/2)+2*C_BOX_MARGIN )
-                print( "{0}|{1}|{2}|{3}|{4}|{5}|{6}|{7}".format("","rectangle",vX,vY,vW,vH,"",""), file=vPosFile )
-
-                if vNbCriticalDefects>0:
-                    vEV.drawRectangle( vX-C_BOX_MARGIN2,vY-C_BOX_MARGIN2,vW+2*C_BOX_MARGIN2,int(5*vH/2)+2*C_BOX_MARGIN2 )
-                    print( "{0}|{1}|{2}|{3}|{4}|{5}|{6}|{7}".format("","rectangle",vX,vY,vW,vH,"",""), file=vPosFile )
-
-
-
-# aObjects: set: object_id -> [ ( critical violations )]
-def generateEnlightenView( aCnx, aLocalSchema, aEFolderName, aEViewName, aObjects, aObjProFilePath, aPosOutputFile, aMode=0 ):
+def generateEnlightenView( aCnx, aLocalSchema, aEFolderName, aEViewName, aObjects, aObjProFilePath, aPosOutputFile, aMode, aOptions ):
     vCnx = aCnx
 
+    logger.info( "    -- generating view for [{0}/{1}] ...".format(aEFolderName,aEViewName) )
+    logger.info( "      using objpro file [{0}]".format(aObjProFilePath) )
+    logger.info( "      generating position file [{0}]".format(aPosOutputFile) )
     C_BOX_MARGIN = 6
     C_BOX_MARGIN2 = 9
 
@@ -323,11 +219,17 @@ def generateEnlightenView( aCnx, aLocalSchema, aEFolderName, aEViewName, aObject
 
         vCE = CCastEnlighten(vConn.cursor(),aLocalSchema)
         vFldId = vCE.getEnlightenFolderId( aEFolderName, True )
-        logger.info( "using folder id:".format(vFldId) )
+        logger.info( "      using folder id: {}".format(vFldId) )
         
         #vModId = vCE.createValidView( aEFolderName, vFldId, aEViewName )
         #vEV = CCastEnlightenView( vCurs, aLocalSchema, vModId )
-        vEV = vCE.createValidView( aEFolderName, vFldId, aEViewName )
+        vSkipEViewIfExists = True
+        if "skip-existing-enlighten-views" in aOptions:
+            vSkipEViewIfExists = aOptions["skip-existing-enlighten-views"]
+        vEV = vCE.createValidView( aEFolderName, vFldId, aEViewName, vSkipEViewIfExists )
+        if vEV is None:
+            logger.warning( "!Warning: skipping enlighten view cause option skip-existing-enlighten-views set" )
+            return
         
         # Add objects to view
         # populate object browser ??
@@ -370,8 +272,10 @@ def generateEnlightenView( aCnx, aLocalSchema, aEFolderName, aEViewName, aObject
 
                 # 0/A:ObjectId | 1/B: ObjectName | 2/C: x | 3/D: y | 4/E: w | 5/F: h | 6/G: text | 7/H: ObjectFullname
                 #old-version#print( "{0}|{1}|{2}|{3}|{4}|{5}|{6}|{7}".format(iO,aObjects[iO][4],vX,vY,vW,vH,"",aObjects[iO][5]), file=vPosFile )
+                # [8] : in path file, this is object name
+                # [9] : in path file this is full name
                 print( "{0}|{1}|{2}|{3}|{4}|{5}|{6}|{7}".format(
-                    iO, aObjects[iO][0][4],vX,vY,vW,vH,"",aObjects[iO][0][5]), file=vPosFile )
+                    iO, aObjects[iO][0][8],vX,vY,vW,vH,"",aObjects[iO][0][9]), file=vPosFile )
                 vNum += 1
                 
                 vNbDefects = 0
@@ -382,11 +286,11 @@ def generateEnlightenView( aCnx, aLocalSchema, aEFolderName, aEViewName, aObject
                 for iDefect in aObjects[iO]:
                     if '*' == iDefect[0] :
                         vNbCriticalDefects += 1
-                        vTextsCritical.append( "*"+iDefect[7] )
+                        vTextsCritical.append( "*"+iDefect[11] )    # 11: metric name in path file
 
                     elif '-' == iDefect[0] :
                         vNbNonCriticalDefects += 1
-                        vTexts.append( iDefect[7] )
+                        vTexts.append( iDefect[11] )    # 11: metric name in path file
                 vNbDefects = vNbNonCriticalDefects + vNbCriticalDefects
 
                 if vNbDefects > 0:
@@ -428,10 +332,10 @@ def generateEnlightenView( aCnx, aLocalSchema, aEFolderName, aEViewName, aObject
 
 
 
-def generateEnlightenView2( aCnx, aLocalSchema, aEFolderName, aEViewName, aPaths, aPathes, aObjProFilePath, aPosOutputFile ):
+def generateEnlightenView2( aCnx, aLocalSchema, aEFolderName, aEViewName, aPaths, aPathes, aObjProFilePath, aPosOutputFile, aOptions ):
     vCnx = aCnx
 
-    logger.info( "-- generating view for [{0}/{1}] ...".format(aEFolderName,aEViewName) )
+    logger.info( "    -- generating view for [{0}/{1}] ...".format(aEFolderName,aEViewName) )
 
     C_BOX_MARGIN = 6
     C_BOX_MARGIN2 = 9
@@ -440,9 +344,15 @@ def generateEnlightenView2( aCnx, aLocalSchema, aEFolderName, aEViewName, aPaths
         
         vCE = CCastEnlighten(vConn.cursor(),aLocalSchema)
         vFldId = vCE.getEnlightenFolderId( aEFolderName, True )
-        logger.info("  using folder id: {}".format(vFldId) )
+        logger.info("      using folder id: {}".format(vFldId) )
         
-        vEV = vCE.createValidView( aEFolderName, vFldId, aEViewName )
+        vSkipEViewIfExists = True
+        if "skip-existing-enlighten-views" in aOptions:
+            vSkipEViewIfExists = aOptions["skip-existing-enlighten-views"]
+        vEV = vCE.createValidView( aEFolderName, vFldId, aEViewName, vSkipEViewIfExists )
+        if vEV is None:
+            logger.warning( "!Warning: skipping enlighten view cause option skip-existing-enlighten-views set" )
+            return
         vEV.doObjPro( getObjPro(None,aObjProFilePath) )
 
         # populate objects
@@ -460,20 +370,26 @@ def generateEnlightenView2( aCnx, aLocalSchema, aEFolderName, aEViewName, aPaths
         vNbMaxRules = 4
 
         # compute nb of real paths from root : number of distinct root children
-        vRChildren = { x[1][7] for x in aPaths }            
+        vRChildren1 = { x[0][7] for x in aPaths }            
+        vRChildren = { x[1][7] for x in aPaths if len(x)>1 }
+        if len(vRChildren1)>len(vRChildren):
+            vRChildren = vRChildren1
 
         with open( aPosOutputFile, "w") as vPosFile:
             print( "# 0/A:ObjectId | 1/B: ObjectName | 2/C: x | 3/D: y | 4/E: w | 5/F: h | 6/G: text | 7/H: ObjectFullname", file=vPosFile )
             
             for iPath in aPathes:
                 vY = vYOrg
+                vY += vDeltaY
                 #for iO in iPath.keys():
                 for iObjectId in iPath.keys():
                     vNbRules = 0
                     
                     if vFirst:
                         vX = int( ( vXOrg + len(vRChildren)*vDeltaX )/2 )
-                        logger.info( "vXOrg: {}, len: {}  =>  vX={}".format(vXOrg,len(vRChildren),vX ) )
+                        vY -= vDeltaY
+                        logger.info( "      vXOrg: {}, len: {}  =>  vX={}".format(vXOrg,len(vRChildren),vX ) )
+
 
                     if iObjectId not in vDrawn:
                         vEV.drawObject( iObjectId, vX, vY, vW, vH )
@@ -576,7 +492,7 @@ def generateEnlightenView2( aCnx, aLocalSchema, aEFolderName, aEViewName, aPaths
 def processTransaction( aCnx, aLocalSchema, aEFolderName, aEViewName, aSingleTransactionFilePath, aMultipleTransactionFilePath ):
     pass
     
-def drawEnlightenViews( aClientAppRootFolder, aClientAppTrSubFolder, aEViewName, aCnx, aLocalSchema ):
+def drawEnlightenViews( aClientAppRootFolder, aClientAppTrSubFolder, aEViewName, aCnx, aLocalSchema, aOptions ):
 
     vEFolderName = "Tr_"+aEViewName
 
@@ -594,29 +510,27 @@ def drawEnlightenViews( aClientAppRootFolder, aClientAppTrSubFolder, aEViewName,
 
         if os.path.exists( vObjectFilePath ):
             logger.info( "    using object file [{0}]".format(vObjectFilePath) )
-            logger.info( "    using objpro file [{0}]".format(vObjProFilePath) )
-            logger.info( "    generating position file [{0}]".format(vOutputPosFile) )
             
             # load object ids
             vObjects= {}
-            vIndex = 0
             with open( vObjectFilePath, "r") as vF:
                 for iLine in vF:
                     if iLine[0:1] != '#':
                         vFieldsT = tuple(iLine.strip().split('|'))
-                        vIndex = int(vFieldsT[3])
+                        vIndex = int(vFieldsT[7])
                         if vIndex in vObjects:
                             vObjects[vIndex].append( vFieldsT )
                         else:
                             vObjects[vIndex] = [ vFieldsT ]
-            generateEnlightenView( aCnx, aLocalSchema, vEFolderName, "T_{0}-{1}".format(aEViewName,iDataKind), vObjects, vObjProFilePath, vOutputPosFile, 0 )
+            logger.info( "    loaded {} objects".format(len(vObjects)) )
+            generateEnlightenView( aCnx, aLocalSchema, vEFolderName, "T_{0}-{1}".format(aEViewName,iDataKind), vObjects, vObjProFilePath, vOutputPosFile, 0, aOptions )
         else:
             print( "File [{0}] does not exist, skipping to the next one.".format(vObjectFilePath), file=sys.stderr )
 
         # all paths file
         vObjectFilePath = os.path.join( vClientAppSubFolderPath, "99_objects-all-{0}.txt".format(iDataKind) )
         if os.path.exists( vObjectFilePath ):
-            logger.info( "  using object file [{0}]".format(vObjectFilePath) )
+            logger.info( "    using object file [{0}]".format(vObjectFilePath) )
 
             # load object ids
             vPaths = [] # list of paths: each path contains list of objects in that path
@@ -632,9 +546,9 @@ def drawEnlightenViews( aClientAppRootFolder, aClientAppTrSubFolder, aEViewName,
                     vLineNo += 1
                     if iLine[0:1] != '#':
                         vFields = tuple(iLine.strip().split('|'))
-                        vIndex = int(vFields[7])
-                        vNbPaths = int(vFields[1])
-                        vPathNum = int(vFields[2])
+                        vIndex = int(vFields[7])    #7: object id in path file
+                        vNbPaths = int(vFields[1])  # 1: nb paths in path file
+                        vPathNum = int(vFields[2])  # 2: num of present path
                         if vPathNum > vCurrPath:
                             # new path
                             vObjects = []
@@ -649,7 +563,14 @@ def drawEnlightenViews( aClientAppRootFolder, aClientAppTrSubFolder, aEViewName,
                         vObjects.append( vFields )
 
             if len(vPaths)>0 and len(vPaths[0]):
-                generateEnlightenView2( aCnx, aLocalSchema, vEFolderName, "T_{0}-all-{1}".format(aEViewName,iDataKind), vPaths, vPathes, vObjProFilePath, vOutputPosFile )
+                #"""
+                logger.info( "    {} paths".format(len(vPaths)) )
+                for iN, iP in enumerate(vPaths):
+                    logger.info( "      {}: {}: {}".format(iN,len(iP),iP) )
+                    logger.info( "        objects: {}: {}".format( len(vPathes[iN]), vPathes[iN] ) )
+                    logger.info( "        objects: {}: {}".format( len(vPathes[iN]), [ ( x, vPathes[iN][x][0][7], vPathes[iN][x][0][8] )  for x in vPathes[iN] ] )  )
+                #"""
+                generateEnlightenView2( aCnx, aLocalSchema, vEFolderName, "T_{0}-all-{1}".format(aEViewName,iDataKind), vPaths, vPathes, vObjProFilePath, vOutputPosFile, aOptions )
             else:
                 logger.warning( "no paths generated, skipping file." )
 
@@ -670,7 +591,7 @@ def renderTransactionInEnlighten( aOptions ):
         vOutputTrRootFolder = aOptions["tr-output-folder"]
         vEViewName = aOptions["transaction-subfolder"]
         vCnxStr = _postgresConnectionString( aOptions['db-config'] )
-        drawEnlightenViews( vOutputRootFolder, vOutputTrRootFolder, vEViewName, vCnxStr, aOptions['db-config']['db-local'] )
+        drawEnlightenViews( vOutputRootFolder, vOutputTrRootFolder, vEViewName, vCnxStr, aOptions['db-config']['db-local'], aOptions )
     else:
         logger.warning( "!Warning: skipping transaction [{}] cause enable-enlighten not set".format(aOptions['transaction']) )
 

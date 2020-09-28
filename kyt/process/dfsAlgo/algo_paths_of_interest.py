@@ -12,7 +12,7 @@ logging.basicConfig(
 def pathsToObjectsOfInterest( aGraph, aStartNode, aObjectsOfInterest, aLeafOfInterest, aAllEndPoints=False ):
     logging.getLogger().setLevel(logging.INFO)
     try:
-        res = _pathsToObjectsOfInterestRec( TExplorationData(aGraph,aObjectsOfInterest, aLeafOfInterest,time.perf_counter()),
+        res = _pathsToObjectsOfInterestRec( TExplorationData(aGraph,aObjectsOfInterest, aLeafOfInterest,time.perf_counter(),6),
             aStartNode, -1 if aAllEndPoints else 0, {}, tuple() )
     except ( AssertionError, TypeError, NameError, AttributeError ):
         raise
@@ -40,7 +40,7 @@ def pathsToObjectsOfInterest( aGraph, aStartNode, aObjectsOfInterest, aLeafOfInt
 #  None if subpath from startnode (incl. start node) is not relevant
 #  tuple: for subpaths [ ( 0: nbr of leaf of interest, 1: number of object of interest, 2: subpath from StartNode), ... )
 TVisitData = collections.namedtuple( "TVisitData", [ "resSubpath", "nbAscOoi" ] )
-TExplorationData = collections.namedtuple( "TExplorationData", [ "g", "ooi", "loi", "startt"])
+TExplorationData = collections.namedtuple( "TExplorationData", [ "g", "ooi", "loi", "startt", "timeout"])
 def _pathsToObjectsOfInterestRec( aExplData, aStartNode, aNbAscOoI, aVisited, aPath ):
     isOoI = 1 if aStartNode._num in aExplData.ooi else 0
     logger.debug( "  exploring node: #{}: {}: nbAscOoi: {}, isOoI: {}".format(aStartNode._num,aStartNode._obj._object_id,aNbAscOoI,isOoI) )
@@ -48,7 +48,7 @@ def _pathsToObjectsOfInterestRec( aExplData, aStartNode, aNbAscOoI, aVisited, aP
     # prevent too long exploration
     vElapsed = time.perf_counter()
     vDeltaT = vElapsed-aExplData.startt
-    if vDeltaT > 60*5:
+    if vDeltaT > aExplData.timeout:
         logger.error( "***ERROR: exploration is taking to much time, aborting." )
         raise  Exception("***ERROR: exploration is taking to much time, aborting.")
 
