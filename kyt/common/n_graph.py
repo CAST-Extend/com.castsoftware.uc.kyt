@@ -1,11 +1,12 @@
 class GraphNode:
-    __slots__ = '_num', '_tag', '_obj', '_edges'
+    __slots__ = '_num', '_tag', '_obj', '_edges', '_ltypes'
 
     def __init__( self, aNum, aCastObject, aTag=-1 ):
         self._num = aNum
         self._obj = aCastObject
         self._edges = set()
         self._tag = aTag
+        self._ltypes = {}   # link type
 
     def isLeaf( self ):
         return 0==len(self._edges)
@@ -51,8 +52,10 @@ class Graph:
         self._mapObj2Num[int(vNewGraphNode._obj._object_id)] = vNewGraphNode._num
         return vNewGraphNode
 
-    def addLink( self, aGraphNode1, aGraphNode2 ):
+    def addLink( self, aGraphNode1, aGraphNode2, aType=None ):
         aGraphNode1._edges.add( aGraphNode2._num )
+        if aType:
+            aGraphNode1._ltypes[aGraphNode2._num] = aType
 
     def verNodesConsistency( self ):
         vVisited = set()
@@ -75,13 +78,14 @@ class Graph:
             iNd._tag = aTagVal
         return self
 
-    def nodesWithNoCaller( self ):
+    def nodesWithNoCaller( self, aOnlyCallType=True ):
         vWithoutCallers = { x for x in range(len(self._nodes)) }
-        
+
         for iNode in self._nodes:
             for iCalledNum in iNode._edges:
-                if iCalledNum in vWithoutCallers:
-                    vWithoutCallers.remove(iCalledNum)
+                if not aOnlyCallType or "callLink/callLink"==iNode._ltypes[iCalledNum]:
+                    if iCalledNum in vWithoutCallers:
+                        vWithoutCallers.remove(iCalledNum)
         return vWithoutCallers
 
     def dumpGraph( self, aNodesDumpPath, aGraphDumpPath ):

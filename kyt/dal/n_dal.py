@@ -1,5 +1,6 @@
 import sys
 import os
+import collections
 
 #import model.n_data
 from model import n_data
@@ -24,6 +25,9 @@ def loadObjects( aFilePath ):
 
 # File format:
 #0/A:TransactionId|1/B:Object1Id|2/C:Object2Id|3/D:TransactionName|4/E:TransactionFullname|5/F:Object1Name|6/G:Object1Fullname|7/H:Object2Name|8/I:Object2Fullname|9/J:LinkTypeName|10/K:LinkTypeDesc
+TLinksFileFields=collections.namedtuple( "TLinksFileFields", [ "transaction_id", "object1_id", "object2_id", "transaction_name", "transaction_fullname", "object1_name", "object1_fullname", "object2_name", "object2_fullname", "link_type_name", "link_type_desc" ] )
+LinksFileFields =  TLinksFileFields( *[ x for x in range(len(TLinksFileFields._fields)) ] )
+
 def loadGraph( aFilePath, aCastObjectDescs ):
     retVal = n_graph.Graph()
 
@@ -41,12 +45,13 @@ def loadGraph( aFilePath, aCastObjectDescs ):
             vLineNo += 1
             if '#' != vLine[0] and vLine.strip():
                 vFields = vLine.strip().split('|')
-                vNode1Obj = vFields[1] 
-                vNode2Obj = vFields[2]
+                vNode1Obj = vFields[LinksFileFields.object1_id] 
+                vNode2Obj = vFields[LinksFileFields.object2_id]
                 vNode1 = retVal.nodeFromObj( vNode1Obj )
                 vNode2 = retVal.nodeFromObj( vNode2Obj )
+                vLType = vFields[LinksFileFields.link_type_name]+"/"+vFields[LinksFileFields.link_type_desc]
                 if vNode1!=None and vNode2!=None:
-                    retVal.addLink( vNode1, vNode2 )
+                    retVal.addLink( vNode1, vNode2, vLType )
                 else:
                     vNbIgnoredLinks += 1
                     if vNode1!=None or vNode2!=None:
