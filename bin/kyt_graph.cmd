@@ -4,28 +4,32 @@
 @REM which is released under GNU GENERAL PUBLIC LICENS v3, Version 3, 29 June 2007.
 @REM See file LICENCE or go to https://www.gnu.org/licenses/ for full license details.
 @REM
-@ECHO OFF
+@echo OFF
 
 TITLE %~n0
 %~d0
-PUSHD %~p0
-CD ..\kyt
+pushd %~p0
+cd ..\kyt
 
-CALL "%~dp0_asetenv.cmd"
+CALL "%~dp0_asetenv.cmd" %1 %2 %3 %4 %5 %6 %7 %8 %9
 
-SET V_SCRIPT_PY=runner.py
-SET V_CONFIG_JSON=%KYT_CONFIG_FILEPATH%
-SET V_OPTIONS=graph
+set V_CONFIG_JSON=%KYT_CONFIG_FILEPATH%
 
-SET V_CMD=python %V_SCRIPT_PY% %V_OPTIONS% "%V_CONFIG_JSON%"
+set V_SCRIPT_PY=runner.py
+set V_OPTIONS=graph
 
-:L_LOOP
-ECHO.^>^>^>^>^>^> %V_CMD%
+set V_CMD=python "%V_SCRIPT_PY%" %V_OPTIONS% "%V_CONFIG_JSON%"
+
+:L_Loop
+echo.^>^>^>^>^>^> %V_CMD%
 %V_CMD%
 
-POPD
+if /I [%O_LOOP%] neq [true] goto L_End
+set V_A=
+set /P V_A=Continue ? 
+if /I [%V_A%] equ [x] cls
+if /I [%V_A%] neq [n] goto L_Loop
 
-:L_END
-IF /I [%1] NEQ [-NoPause] PAUSE
-
-:L_END_NOPAUSE
+:L_End
+popd
+if /I [%1] neq [-NoPause] pause
