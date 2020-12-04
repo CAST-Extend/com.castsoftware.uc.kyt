@@ -303,6 +303,7 @@ def computeTransactionPath( aOptions ):
     vOptions2 = aOptions
     vBaseFilePath = aOptions['tr-output-folder']
     vRootNodeId = aOptions['transaction']['root-object-id'] if 'root-object-id' in aOptions['transaction'] else None
+    vRootNodeId = aOptions['transaction-config']['root-object-id'] if 'root-object-id' in aOptions['transaction-config'] else None
     vOptions = aOptions
     vWithViolationObjects = os.path.exists(os.path.join(aOptions['tr-output-data-folder'],"30_objects-with-violations.txt"))
     computePathes( vOptions2, vBaseFilePath, vRootNodeId, aOptions, vWithViolationObjects )
