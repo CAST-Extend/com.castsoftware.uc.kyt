@@ -6,8 +6,6 @@ import xml.etree.ElementTree
 import re
 import collections
 
-from common import colors
-
 import logging
 logger = logging.getLogger(__name__) 
 logging.basicConfig(
@@ -122,7 +120,6 @@ C_KIND_END_POINT    = "end-point"
 C_KIND_NODE         = "regular-node"
 C_WITH_CV           = "node-with-cv"
 C_WITH_V            = "node-with-v"
-C_KIND_CLUSTER           = "cluster"
 
 TNodeJsData = collections.namedtuple( "TNodeJsData", [ "id", "x", "y", "label", "kind", "withCV", "withV" ] )
 
@@ -251,31 +248,21 @@ class SvgParser:
         #   w/ crit violation: stroke: red or #ff0000
         #   w/ non crit violation: stroke: lightsalmon or #ffffe0
         #   regular node: stroke and fill: white or #ffffff
-        if colors.areEquals( vFill, self._colors["fill-color"]["entry-point"] ):
-        #if vFill in ( "#ffffe0", "lightyellow" ):
+        if vFill in ( "#ffffe0", "lightyellow" ):
             #logger.info( "    -> entry point" )
             vObjectKind = C_KIND_ENTRY_POINT
 
-        elif colors.areEquals( vFill, self._colors["fill-color"]["end-point"] ):
-        #elif vFill in ( "#fff8dc", "cornsilk" ):
+        elif vFill in ( "#fff8dc", "cornsilk" ):
             #logger.info( "    -> end point" )
             vObjectKind = C_KIND_END_POINT
-        
-        elif colors.areEquals( vFill, self._colors["fill-color"]["cluster"] ):
-        #elif vFill in ( "#fff8dc", "cornsilk" ):
-            #logger.info( "    -> end point" )
-            vObjectKind = C_KIND_CLUSTER
-        
         elif vFill not in ( "white", "#ffffff" ):
             logger.warning( "don't know fill color: {}".format(vFill) )
 
-        if colors.areEquals( vStroke, self._colors["border-color"]["with-crit"] ):
-        #if vStroke in ( "#ff0000", "red" ):
+        if vStroke in ( "#ff0000", "red" ):
             #logger.info( "    >> object with critical violations" )
             vWithCViolation = True
 
-        elif colors.areEquals( vStroke, self._colors["border-color"]["with-non-crit"] ):
-        #elif vStroke in( "#ffa07a", "lightsalmon", "#4d4d4d" ):
+        elif vStroke in( "#ffa07a", "lightsalmon", "#4d4d4d" ):
             #logger.info( "    >> object with violations" )
             vWithViolation = True
 
@@ -283,6 +270,7 @@ class SvgParser:
         # Is object with violations ? ie if contains 
         vCriticalViolations = []
         vViolations = []
+        vWithCriticalViolations = False
         vWithNonCriticalViolations = False
         vPrevX = vRect.x
         vPrevY = vRect.y
@@ -295,33 +283,25 @@ class SvgParser:
             vX = float(iSvgText.attrib["x"])*C_X_CORRECTION+aTransform.trX
             vY = float(iSvgText.attrib["y"])*C_Y_CORRECTION+aTransform.trY
 
-            if colors.areEquals( vFill, self._colors["text-color"]["crit-violation"] ):
-            #if "#cd0000" == vFill:
+            if colors.areEquals( vFill, aColors["text-color"]["with-crit"] )
+            if "#cd0000" == vFill:
                 #logger.info( "    -> Crit. violation: {}".format(iSvgText.text) )
                 vStack.append( ( iSvgText.text.strip(), TRectangle(vRect.x+6,vPrevY,vRect.w-6,vY-vPrevY ) ) )
                 vWithCriticalViolations = True
                 vObjectViolations.append( "<b><i>{}</i></b>".format(iSvgText.text.strip().replace('"','\\"')) )
 
-            elif colors.areEquals( vFill, self._colors["text-color"]["object-type"] ):
-            #elif "#0000cd" == vFill:
+            elif "#0000cd" == vFill:
                 vObjectType = iSvgText.text
                 #logger.info( "    -> Object type : {}".format(vObjectType) )
-
-            elif colors.areEquals( vFill, self._colors["text-color"]["object-name"] ):
-            #elif "#cd00cd" == vFill:
+            
+            elif "#cd00cd" == vFill:
                 vObjectName = iSvgText.text
                 #logger.info( "    -> Object name : {}".format(vObjectName) )
 
-            elif colors.areEquals( vFill, self._colors["text-color"]["cluster"] ):
-            #elif "#cd00cd" == vFill:
-                vObjectName = iSvgText.text
-                vObjectType = ""
-                #logger.info( "    -> Object name : {}".format(vObjectName) )
-
-            elif colors.areEquals( vFill, self._colors["text-color"]["non-crit-violation"] ):
-            #elif "#666666" == iSvgText.attrib["fill"]:
+            elif "#666666" == iSvgText.attrib["fill"]:
                 #logger.info( "    -> Non critical violation: {}".format(iSvgText.text) )
                 vStack.append( ( iSvgText.text.strip(), TRectangle(vRect.x+6,vPrevY,vRect.w-6,vY-vPrevY ) ) )
+                vWithNonCriticalViolations = True
                 vObjectViolations.append( iSvgText.text.strip().replace('"','\\"') )
 
             vPrevX = vX
@@ -359,10 +339,10 @@ class SvgParser:
 
 
 
-def svgToVis( aInSvgPath, aOutPosPath, aOutJsDataPath, aColors ):
+def svgToVis( aInSvgPath, aOutPosPath, aOutJsDataPath ):
     with VisnetworkAuthor(aOutJsDataPath,C_X_CORRECTION_VIS, C_Y_CORRECTION_VIS) as vVis:
         with PosAuthor(aOutPosPath,C_X_CORRECTION_POS,C_Y_CORRECTION_POS) as vPos:
-            vSvgP = SvgParser(aInSvgPath,vPos,vVis,aColors)
+            vSvgP = SvgParser(aInSvgPath,vPos,vVis)
             vSvgP.process()
 
 

@@ -153,7 +153,7 @@ def searchPathsOfInterest( aGraph, aRootNodeNum, aObjectNums, aLeafNums, aOption
         retVal.append( TAlgoResult( iAlgo, vRes, vAllPaths ) )
 
     logger.info( "-- ------------------------------------------------------------------------" )
-    
+    ##//return retVal
     logger.info( "-- ------------------------------------------------------------------------" )
     # Experimental algorithms to be put in process_config
     if True:
@@ -296,6 +296,7 @@ def getTransactionInfo( aBaseFilePath ):
     return retValTrId, retValTrName
 
 def infereRootNode( aGraph, aTransactionId, aRootNodeId, aTableObjects, aEndPoints ):
+    logger.info( ">>>>>>>>>>>>>>>>>> given root node id: {}".format(aRootNodeId))
     vRootNode = aGraph.nodeFromObj( aRootNodeId ) if aRootNodeId else None
     if None != vRootNode:
         retVal = vRootNode
@@ -308,8 +309,8 @@ def infereRootNode( aGraph, aTransactionId, aRootNodeId, aTableObjects, aEndPoin
         for iNum in vNodesWithoutCallers:
             vNode = aGraph.node(iNum)
             vRes5b = aGraph.accessibleNodes( vNode, aTableObjects, aEndPoints )
-            logger.info( "-> Accessible nodes: {0:>4} out of {1:>4}: tables: {3:>3}, endpoints: {4:>3}: {2}".format(
-                len(vRes5b[0]),len(aGraph._nodes),vNode.formatNode(),vRes5b[2],vRes5b[3]) )
+            #logger.info( "-> Accessible nodes: {0:>4} out of {1:>4}: tables: {3:>3}, endpoints: {4:>3}: {2}".format(
+            #    len(vRes5b[0]),len(aGraph._nodes),vNode.formatNode(),vRes5b[2],vRes5b[3]) )
             if len(vRes5b[0]) > vMaxAccessibles:
                 vRealRootNode = vNode
                 vMaxAccessibles = len(vRes5b[0])
@@ -326,13 +327,24 @@ def infereRootNode( aGraph, aTransactionId, aRootNodeId, aTableObjects, aEndPoin
     return retVal
 
 def computeTransactionPath( aOptions ):
+    vLogHandler = logging.FileHandler( os.path.join(aOptions["tr-output-folder"], "logs.txt") )
+    vLogHandler.setLevel( logging.INFO )
+    vLogHandler.setFormatter( logging.Formatter("[%(levelname)-8s][%(asctime)s][%(name)-12s] %(message)s") )
+    logger.addHandler( vLogHandler )
+
     vOptions2 = aOptions
     vBaseFilePath = aOptions['tr-output-folder']
+    logger.info( ">>>>>>>>>>>>>>>>>>>> root-object-id: {}".format(aOptions['transaction-config']['root-object-id'] if 'root-object-id' in aOptions['transaction-config'] else None) )
+    logger.info( ">>>>>>>>>>>>>>>>>>>> options: {}".format(aOptions) )
+    vRootNodeId = aOptions['transaction-config']['root-object-id'] if 'root-object-id' in aOptions['transaction-config'] else None
     vRootNodeId = aOptions['transaction']['root-object-id'] if 'root-object-id' in aOptions['transaction'] else None
     vRootNodeId = aOptions['transaction-config']['root-object-id'] if 'root-object-id' in aOptions['transaction-config'] else None
     vOptions = aOptions
     vWithViolationObjects = os.path.exists(os.path.join(aOptions['tr-output-data-folder'],"30_objects-with-violations.txt"))
     computePathes( vOptions2, vBaseFilePath, vRootNodeId, aOptions, vWithViolationObjects )
+    
+    logger.info("")
+    logger.removeHandler( vLogHandler )
 
 def computePathes( aOptions2, aBaseFilePath, aRootNodeId, aOptions, aWithViolationObjects=False ):
     logger.info( "-- Processing transaction [{0}]".format(aBaseFilePath) )
@@ -434,15 +446,14 @@ def computePathes( aOptions2, aBaseFilePath, aRootNodeId, aOptions, aWithViolati
         # Output path in path and gviz formats
         vOPathFilePath = formatPath( os.path.join(aBaseFilePath,"_paths"), 'enlighten-objects', iAlgoRes.algo.short_name )
         vOGvizFilePath = formatPath( os.path.join(aBaseFilePath,"_gviz"), 'enlighten-objects', iAlgoRes.algo.short_name )+".gviz"
-        output_paths.outputPaths( aOptions2, vOPathFilePath, vOGvizFilePath,
-            vGraph, vCastTransaction, { vRootNode._num : [vRes] } )
+        output_paths.outputPaths( aOptions2, vOPathFilePath, vOGvizFilePath, vGraph, vCastTransaction, { vRootNode._num : [vRes] }, True )
 
         # Output all paths
         vOPathFilePath = formatPath( os.path.join(aBaseFilePath,"_paths"), 'enlighten-objects-all2', iAlgoRes.algo.short_name )
         vOGvizFilePath = formatPath( os.path.join(aBaseFilePath,"_gviz"), 'enlighten-objects-all2', iAlgoRes.algo.short_name )+".gviz"
         vAllPaths = iAlgoRes.resAll
         if vAllPaths:
-            output_paths.outputPaths( aOptions2, vOPathFilePath, vOGvizFilePath, vGraph, vCastTransaction, vAllPaths )
+            output_paths.outputPaths( aOptions2, vOPathFilePath, vOGvizFilePath, vGraph, vCastTransaction, vAllPaths, False )
 
 
 

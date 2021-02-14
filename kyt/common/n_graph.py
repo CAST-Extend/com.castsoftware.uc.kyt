@@ -11,6 +11,11 @@ class GraphNode:
     def isLeaf( self ):
         return 0==len(self._edges)
 
+    def edges( self ):
+        return self.edges
+
+
+
     # Level:
     #  0 : numeric identifier only (index in graph node list)
     #  1 : 0 + CAST object id

@@ -5,10 +5,11 @@
 
 import sys
 import logging
+import json
 
 logger = logging.getLogger(__name__) 
 logging.basicConfig(
-    format='[%(levelname)-8s][%(asctime)s][%(name)-12s] %(message)s',
+    format='[%(levelname)-8s][%(asctime)s][%(name)-24s] %(message)s',
     level=logging.INFO
 )
 
@@ -39,6 +40,7 @@ def run( aArgs ):
 
     if aArgs:
         vConfigFilePath = aArgs[-1]
+        
         vArgs = [ x.lower() for x in aArgs ]
         for i in C_COMMANDS.keys():
             if i in vArgs:

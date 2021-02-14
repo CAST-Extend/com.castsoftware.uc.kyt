@@ -14,13 +14,14 @@ class CastObject:
         self._object_id = aObjectId
 
 class CastObjectDesc:
-    __slots__ = '_object_id', '_object_name', '_object_fullname', '_object_type'
+    __slots__ = '_object_id', '_object_name', '_object_fullname', '_object_type', '_object_central_id'
 
-    def __init__( self, aObjectId, aObjectName, aObjectFullname, aObjectType ):
+    def __init__( self, aObjectId, aObjectName, aObjectFullname, aObjectType, aObjectCentralId=None ):
         self._object_id = aObjectId
         self._object_name = aObjectName
         self._object_fullname = aObjectFullname
         self._object_type = aObjectType
+        self._object_central_id = aObjectCentralId
 
     def objectName( self ):
         return self._object_name

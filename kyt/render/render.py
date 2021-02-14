@@ -69,6 +69,11 @@ def renderGViz( aPathToDotExe, aInFilepath, aFormats ):
          
 
 def renderTransaction( aOptions ):
+    vLogHandler = logging.FileHandler( os.path.join(aOptions["tr-output-folder"], "logs.txt") )
+    vLogHandler.setLevel( logging.INFO )
+    vLogHandler.setFormatter( logging.Formatter("[%(levelname)-8s][%(asctime)s][%(name)-12s] %(message)s") )
+    logger.addHandler( vLogHandler )
+
     if "gviz-distrib-path" in aOptions:
         #vPathToDotExe = "{}\\bin\\dot.exe".format(aOptions["gviz-distrib-path"])
         vPathToDotExe = None
@@ -84,19 +89,23 @@ def renderTransaction( aOptions ):
                 vBasename, vExtension =  os.path.splitext(iF)
                 if os.path.isfile(vGVizPath) and vExtension.lower() in ( '.gviz', ):
                     logger.info( "    candidate found: [{}]".format(iF) )
-                    renderGViz( vPathToDotExe, vGVizPath, TRenderFormats(True,True,False,False) )
+                    #renderGViz( vPathToDotExe, vGVizPath, TRenderFormats(True,True,False,False) )
+                    renderGViz( vPathToDotExe, vGVizPath, TRenderFormats(True,False,False,False) )
 
                     vSvgPath = os.path.join(vOutputFolderPath,vBasename)+'.gviz.svg'
                     vSvgPos = os.path.join(vOutputFolderPath,vBasename)+'.pos'
                     vSvgJs = os.path.join(vOutputFolderPath,vBasename)+'.data.js'
                     logger.info( "      creating pos file [{}]".format(vSvgPos) )
                     logger.info( "      creating js file [{}]".format(vSvgJs) )
-                    svg.svgToVis( vSvgPath, vSvgPos, vSvgJs )
+                    svg.svgToVis( vSvgPath, vSvgPos, vSvgJs, aOptions["style"]["node"] )
         else:
             logg.error( "***ERROR: wrong 'gviz-distrib-path' in config files: {}".format(aOptions["gviz-distrib-path"]) )
 
     else:
         logg.error( "***ERROR: missing option 'gviz-distrib-path' in config file." )
+        
+    logger.info( "" )
+    logger.removeHandler( vLogHandler )
 
 
 def kytRenderMain( aArgv ):

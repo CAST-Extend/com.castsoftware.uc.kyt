@@ -3,6 +3,8 @@ import traceback
 import json
 import logging
 import dal.css.tri
+import dal.rapi.tri
+
 logger = logging.getLogger(__name__) 
 logging.basicConfig(
     format='[%(levelname)-8s][%(asctime)s][%(name)-12s] %(message)s',
@@ -134,14 +136,31 @@ class CConfig:
         self._prepareOutputDirectories( aConfigOptions )
         self._prepareKytViewer( aConfigOptions )
 
+    # Ensure all options are in the map to avoid existence test everywhere
+    def setDefaultOptionsForConfiguration( self, aConfigOptions ):
+        vDefaultValues = (
+            ( "trace-extract-css-queries", False ),
+            ( "critical-rules-only", True ),
+            ( "with-violations", True ),
+            ( "transaction-limit", 999 ),
+            ( "disable-all-others", False ),
+            ( "force-css-violations-extract", False ),
+            ( "disable-rest-api-extract", False ),
+			( "group-nodes-without-violations", True ),
+        )
+        for i in vDefaultValues:
+            if i[0] not in aConfigOptions:
+                aConfigOptions[i[0]] = i[1]
+                logger.info( "  setting option's default value: {}: {}".format(i[0],i[1]) )
+        if "rest-api" in aConfigOptions:
+            if "login" not in aConfigOptions["rest-api"]: aConfigOptions["rest-api"]["login"] = ""
+            if "apikey" not in aConfigOptions["rest-api"]: aConfigOptions["rest-api"]["apikey"] = ""
+
     def processConfigurations( self, aTrCallback, aConfigCallback, aUseCached ):
         for nC, iC in enumerate(self.configurations()):
             logger.info( "-- Processing config [{}]...".format(iC['config']) )
             vConfigOptions = iC['options']
-            vWithViolations = True
-            if "with-violations" not in vConfigOptions:
-                vWithViolations = bool(vConfigOptions["with-violations"])
-            vConfigOptions["with-violations"] = vWithViolations
+            self.setDefaultOptionsForConfiguration( vConfigOptions )
 
             vDbConfig = { 'db-login':vConfigOptions['db-login'],
                 'db-password':vConfigOptions['db-password'], 'db-server':vConfigOptions['db-server'],
@@ -188,25 +207,33 @@ class CConfig:
                 vTTri = dal.css.tri.extractTransactionTri(aOptions["db-config"]["db-server"], aOptions["db-config"]["db-port"],
                     aOptions["db-config"]["db-login"], aOptions["db-config"]["db-password"],
                     aOptions["db-config"]["db-base"], aOptions["db-config"]["db-prefix"], vLoadLimit )
+
+                vTriDumpFile = os.path.join( aOptions["output-root-folder"], "tri.txt")
+                with open( vTriDumpFile, "w" ) as vOF:
+                    for iHf in ( "ROB", "EFF", "SEC" ):
+                        for iN, iTTri in enumerate(vTTri[iHf]):
+                            print ( "{}|{}|{}|{}|{}|{}".format(iN+1,iHf,iTTri.local_id,iTTri.central_id,iTTri.fullname,iTTri.name), file=vOF)
+
                 for iHf in ( "ROB", "EFF", "SEC" ):
                     vLimit = vLimits[iHf]
                     vTransactionAlreadyDeclared = set()
-                    logger.info( "###### {}: top {} riskiest transactions:".format(iHf,vLimit) )
+                    logger.info( "  ###### {}: top {} riskiest transactions:".format(iHf,vLimit) )
                     iN = 0
                     for iTTri in vTTri[iHf]:
                         if iN < vLimit:
-                            logger.info( "  {:<2}: TRI: {}, transaction fullname: {}".format(iN+1,iTTri.tri,iTTri.fullname) )
-                            if iTTri.fullname not in vTransactionAlreadyDeclared:
+                            logger.info( "    {:<2}: TRI: {}, transaction fullname: {}".format(iN+1,iTTri.tri,iTTri.fullname) )
+                            vKey = iTTri.fullname+":"+str(iTTri.local_id)
+                            if vKey not in vTransactionAlreadyDeclared:
                                 vAutoTr = {
                                     "#":"{}, {}, TRI={}".format(iHf,iN+1,iTTri.tri),
                                     "subfolder":"[{}]_{:0>2}".format(iHf,iN+1),
                                     "fullname":"{}".format(iTTri.fullname),
                                     "enable":True,
                                     "enable-enlighten":True if iN<6 else False,
-                                    "root-object-id":None
+                                    "root-object-id":iTTri.local_id
                                 }
                                 #logger.info( "    -> {}".format(vAutoTr) )
-                                vTransactionAlreadyDeclared.add( iTTri.fullname )
+                                vTransactionAlreadyDeclared.add( vKey )
                                 retVal.append( vAutoTr )
                                 iN += 1
                             else:
@@ -275,10 +302,12 @@ class CConfig:
                     vSubfolder = vTransaction
 
                 aOptions['transaction-subfolder'] = vSubfolder
+                aOptions['tr-subfolder'] = vSubfolder
                 if 'enable' in iTrDef and "false"==str(iTrDef['enable']).lower():
                     logger.warning( "!!!WARNING: skipping disabled transaction [{}]".format(vTransaction) )
                     continue
 
+                # Generate dynamic option for transaction:
                 aOptions['tr-output-folder'] = os.path.join(aOptions['output-root-folder'],vSubfolder)
                 aOptions['tr-output-data-folder'] = os.path.join(aOptions['tr-output-folder'],"_data")
                 aOptions['tr-output-gviz-folder'] = os.path.join(aOptions['tr-output-folder'],"_gviz")

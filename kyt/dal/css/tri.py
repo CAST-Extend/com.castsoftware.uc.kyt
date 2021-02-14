@@ -11,7 +11,7 @@ logging.basicConfig(
     level=logging.DEBUG
 )
 
-TTransactionTri = collections.namedtuple( "TTransactionTri", ["hf","tri","fullname"])
+TTransactionTri = collections.namedtuple( "TTransactionTri", ["hf","tri","fullname","central_id","local_id","name"])
 
 ##== ------------------------------------------------------------------------
 def _postgresExecuteQuery( aConn, aQuery, aIsDDL=False ):
@@ -61,7 +61,7 @@ ORDER BY
 # {0} : central schema name
 # {1} : local schema name
 C_QUERY_CENTRAL_TRI2 = """
-SELECT TRI.bc_id, TRI.tri, OBJCEN.object_full_name
+SELECT TRI.bc_id, TRI.tri, OBJCEN.object_full_name, OBJCEN.object_id, TRLOC.form_id, OBJCEN.object_name
 FROM
 	{0}.dss_tri_transaction TRI
 	JOIN {0}.dss_objects OBJCEN ON OBJCEN.object_id = TRI.transaction_id
@@ -75,6 +75,7 @@ ORDER BY
 
 C_CAST_HF = { 60013:"ROB", "60013":"ROB", 60014:"EFF", "60014":"EFF", 60016:"SEC", "60016":"SEC" }
 
+# Returns: map Healt-factor -> [ <tri>, <fullname>, <transaction central id>, <transaction local id> ]
 def extractTransactionTri( aCssServer, aCssPort, aCssLogin, aCssPassword, aCssDb, aSchemaPrefix, aLimit ):
     retVal = { "ROB":[], "EFF":[], "SEC":[] }
     vCnxStr = "host='{0}' port={1} dbname='{2}' user='{3}' password='{4}'".format(
@@ -88,7 +89,7 @@ def extractTransactionTri( aCssServer, aCssPort, aCssLogin, aCssPassword, aCssDb
                 if iRow[0] in C_CAST_HF:
                     vHf = C_CAST_HF[iRow[0]]
                     if len(retVal[vHf]) < aLimit:
-                        retVal[vHf].append( TTransactionTri(vHf, iRow[1], iRow[2]) )
+                        retVal[vHf].append( TTransactionTri(vHf, iRow[1], iRow[2], iRow[3], iRow[4], iRow[5]) )
                 else:
                     print( "***ERROR: unknown hf: {}".format(iRow), file=sys.stderr )
     return retVal

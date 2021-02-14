@@ -14,12 +14,15 @@
         "gviz-outputs":[ "png", "svg", "#dot", "#xdot" ],
         "style":{
             "node": {
-                "border-color": { "regular":"white", "entry-point":"goldenrod1", "end-point":"goldenrod1", "with-crit":"red", "with-non-crit":"gray30" },
-                "fill-color": { "regular":"white", "entry-point":"lightyellow", "end-point": "cornsilk", "with-crit":"white", "with-non-crit":"white" },
-                "text-color": { "object-type":"blue3", "object-name":"magenta3", "crit-violation":"red3", "non-crit-violation":"gray40"}
+                "border-color": { "regular":"white", "entry-point":"goldenrod1", "end-point":"goldenrod1", "with-crit":"red", "with-non-crit":"gray30", "cluster":"gray98" },
+                "fill-color": { "regular":"white", "entry-point":"lightyellow", "end-point": "cornsilk", "with-crit":"white", "with-non-crit":"white", "cluster":"gray98" },
+                "shape": { "regular":"box", "entry-point":"box", "end-point": "box", "with-crit":"box", "with-non-crit":"box", "cluster":"septagon" },
+                "text-color": { "object-type":"blue3", "object-name":"magenta3", "crit-violation":"red3", "non-crit-violation":"gray40", "cluster":"gray50", "cluster2":"magenta3" }
             }
         },
         "with-critical-violations":true,
+        "trace-extract-css-queries":true,
+        "force-css-violations-extract":true,
         "#dummy":null
     }
 },
